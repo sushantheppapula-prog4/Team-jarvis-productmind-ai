@@ -5,6 +5,7 @@ export type Evidence = {
   publication_date?: string | null;
   retrieved_at: string;
   claim: string;
+  evidence_text?: string;
 };
 
 export type MarketSignal = {
@@ -36,12 +37,18 @@ export type MarketAnalysis = {
 };
 
 function nonEmpty(value: unknown): value is string { return typeof value === "string" && value.trim().length > 0; }
+function domainFor(url: string) { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return "unknown"; } }
+function cleanTerm(value: string | null | undefined) { return (value || "").replace(/["()]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120); }
+function escapeRegExp(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+function decodeXml(value: string) { return value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">" ).replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim(); }
+function xmlField(xml: string, tag: string) { const match = xml.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`, "i")); return match ? decodeXml(match[1]) : ""; }
+function stripHtml(value: string) { return value.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(); }
 
 function validateEvidence(value: unknown): Evidence {
   if (!value || typeof value !== "object") throw new Error("Invalid evidence record.");
   const item = value as Partial<Evidence>;
   if (!nonEmpty(item.title) || !nonEmpty(item.url) || !/^https?:\/\//i.test(item.url) || !nonEmpty(item.domain) || !nonEmpty(item.retrieved_at) || !nonEmpty(item.claim)) throw new Error("Invalid evidence record.");
-  return { title: item.title, url: item.url, domain: item.domain, publication_date: item.publication_date || null, retrieved_at: item.retrieved_at, claim: item.claim };
+  return { title: item.title, url: item.url, domain: item.domain, publication_date: item.publication_date || null, retrieved_at: item.retrieved_at, claim: item.claim, evidence_text: item.evidence_text || item.claim };
 }
 
 function validateAnalysis(value: unknown): MarketAnalysis {
@@ -65,63 +72,93 @@ function validateAnalysis(value: unknown): MarketAnalysis {
   return { market_readiness: item.market_readiness as MarketAnalysis["market_readiness"], readiness_reason: item.readiness_reason, recommended_launch_window: item.recommended_launch_window, launch_reasoning: item.launch_reasoning, confidence: item.confidence as MarketAnalysis["confidence"], confidence_reason: item.confidence_reason, reasoning: item.reasoning, key_findings: item.key_findings.slice(0, 5), signals, recommendations };
 }
 
-function cleanTerm(value: string | null | undefined) { return (value || "").replace(/["()]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120); }
-function domainFor(url: string) { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return "unknown"; } }
-
 export type ResearchStatus = "available" | "rate_limited" | "unavailable";
+export type ResearchProvider = "gdelt" | "google_news_rss";
+export type ResearchResult = { provider: ResearchProvider; status: ResearchStatus; sources: Evidence[]; claims: string[]; retrievedAt: string | null; error?: string };
 
-export type ResearchResult = {
-  provider: "gdelt";
-  status: ResearchStatus;
-  sources: Evidence[];
-  claims: string[];
-  retrievedAt: string | null;
-  error?: string;
-};
+async function fetchPublisherEvidence(title: string, candidateUrl: string, publisherUrl: string | null, publicationDate: string | null, retrievedAt: string, terms: string[]): Promise<Evidence | null> {
+  if (!/^https?:\/\//i.test(candidateUrl)) return null;
+  try {
+    const response = await fetch(candidateUrl, { headers: { accept: "text/html,application/xhtml+xml", "user-agent": "Clyra/1.0 research validation" }, redirect: "follow", cache: "no-store" });
+    if (!response.ok) return null;
+    const finalUrl = response.url;
+    const finalDomain = domainFor(finalUrl);
+    if (finalDomain === "news.google.com") {
+      if (!publisherUrl || !/^https?:\/\//i.test(publisherUrl)) return null;
+      const publisherResponse = await fetch(publisherUrl, { headers: { accept: "text/html,application/xhtml+xml", "user-agent": "Clyra/1.0 research validation" }, redirect: "follow", cache: "no-store" });
+      if (!publisherResponse.ok) return null;
+      const publisherText = stripHtml(await publisherResponse.text()).slice(0, 12000);
+      if (!publisherText) return null;
+      const claim = `The live Google News result from ${finalDomainFor(publisherUrl)} is titled: ${title}`;
+      return validateEvidence({ title, url: publisherUrl, domain: domainFor(publisherUrl), publication_date: publicationDate, retrieved_at: retrievedAt, claim, evidence_text: `${title}. Publisher page text was retrieved from ${publisherUrl}.` });
+    }
+    const text = stripHtml(await response.text()).slice(0, 18000);
+    if (!text) return null;
+    const haystack = `${title} ${text}`.toLowerCase();
+    const relevant = terms.some((term) => term.length >= 3 && haystack.includes(term.toLowerCase())) || haystack.includes(finalDomain.toLowerCase());
+    if (!relevant) return null;
+    const claim = `The publisher page reports: ${title}`;
+    return validateEvidence({ title, url: finalUrl, domain: finalDomain, publication_date: publicationDate, retrieved_at: retrievedAt, claim, evidence_text: text.slice(0, 2000) });
+  } catch { return null; }
+}
+
+function finalDomainFor(url: string) { return domainFor(url); }
+
+async function researchGoogleNews(terms: string[], gdeltError: string): Promise<ResearchResult> {
+  const query = terms.map((term) => `"${term}"`).join(" OR ");
+  const rssUrl = new URL("https://news.google.com/rss/search");
+  rssUrl.searchParams.set("q", query);
+  rssUrl.searchParams.set("hl", "en-US"); rssUrl.searchParams.set("gl", "US"); rssUrl.searchParams.set("ceid", "US:en");
+  const retrievedAt = new Date().toISOString();
+  try {
+    const response = await fetch(rssUrl, { headers: { accept: "application/rss+xml, application/xml", "user-agent": "Clyra/1.0 research" }, cache: "no-store" });
+    if (!response.ok) return { provider: "google_news_rss", status: "unavailable", sources: [], claims: [], retrievedAt, error: `LIVE MARKET RESEARCH UNAVAILABLE (GDELT ${gdeltError}; Google News RSS HTTP ${response.status})` };
+    const xml = await response.text();
+    const itemMatches = xml.match(/<item>[\s\S]*?<\/item>/gi) || [];
+    const sources: Evidence[] = [];
+    for (const item of itemMatches.slice(0, 18)) {
+      const title = xmlField(item, "title"); const link = xmlField(item, "link"); const publicationDate = xmlField(item, "pubDate") || null;
+      const sourceMatch = item.match(/<source(?:\s+url=["']([^"']+)["'])?>([\s\S]*?)<\/source>/i);
+      const publisherUrl = sourceMatch?.[1] ? decodeXml(sourceMatch[1]) : null;
+      if (!title || !link) continue;
+      const evidence = await fetchPublisherEvidence(title, link, publisherUrl, publicationDate, retrievedAt, terms);
+      if (evidence) sources.push(evidence);
+      if (sources.length >= 12) break;
+    }
+    if (!sources.length) return { provider: "google_news_rss", status: "unavailable", sources: [], claims: [], retrievedAt, error: `LIVE MARKET RESEARCH UNAVAILABLE (GDELT ${gdeltError}; Google News RSS returned no validated publisher evidence)` };
+    return { provider: "google_news_rss", status: "available", sources, claims: sources.map((source) => source.claim), retrievedAt, error: `GDELT ${gdeltError}; Google News RSS fallback used.` };
+  } catch { return { provider: "google_news_rss", status: "unavailable", sources: [], claims: [], retrievedAt: null, error: `LIVE MARKET RESEARCH UNAVAILABLE (GDELT ${gdeltError}; Google News RSS request failed)` }; }
+}
 
 export async function researchMarket(product: Record<string, unknown>): Promise<ResearchResult> {
-  const terms = [cleanTerm(String(product.name || "")), cleanTerm(String(product.category || "")), cleanTerm(String(product.target_market || "")), cleanTerm(String(product.competitors || ""))].filter(Boolean).slice(0, 4);
-  if (!terms.length) return { provider: "gdelt", status: "unavailable", sources: [], claims: [], retrievedAt: null, error: "RESEARCH TEMPORARILY UNAVAILABLE" };
+  const terms = [String(product.name || ""), String(product.category || ""), String(product.target_market || ""), String(product.competitors || "")].map(cleanTerm).filter(Boolean).slice(0, 4);
+  if (!terms.length) return { provider: "gdelt", status: "unavailable", sources: [], claims: [], retrievedAt: null, error: "LIVE MARKET RESEARCH UNAVAILABLE" };
   const url = new URL("https://api.gdeltproject.org/api/v2/doc/doc");
-  url.searchParams.set("query", `(${terms.map((term) => `"${term}"`).join(" OR ")})`);
-  url.searchParams.set("mode", "artlist");
-  url.searchParams.set("maxrecords", "12");
-  url.searchParams.set("timespan", "3months");
-  url.searchParams.set("sort", "datedesc");
-  url.searchParams.set("format", "json");
+  url.searchParams.set("query", `(${terms.map((term) => `"${term}"`).join(" OR ")})`); url.searchParams.set("mode", "artlist"); url.searchParams.set("maxrecords", "12"); url.searchParams.set("timespan", "3months"); url.searchParams.set("sort", "datedesc"); url.searchParams.set("format", "json");
   try {
     const response = await fetch(url, { headers: { accept: "application/json" }, cache: "no-store" });
-    if (response.status === 429) return { provider: "gdelt", status: "rate_limited", sources: [], claims: [], retrievedAt: null, error: "RESEARCH TEMPORARILY UNAVAILABLE" };
-    if (!response.ok) return { provider: "gdelt", status: "unavailable", sources: [], claims: [], retrievedAt: null, error: `Market research provider returned HTTP ${response.status}.` };
-    const raw = await response.text();
-    let payload: { articles?: Array<{ title?: string; url?: string; seendate?: string; domain?: string }> };
-    try {
-      payload = JSON.parse(raw) as { articles?: Array<{ title?: string; url?: string; seendate?: string; domain?: string }> };
-    } catch {
-      return { provider: "gdelt", status: "unavailable", sources: [], claims: [], retrievedAt: null, error: "RESEARCH TEMPORARILY UNAVAILABLE" };
-    }
+    if (response.status === 429) return researchGoogleNews(terms, "GDELT_RATE_LIMITED");
+    if (!response.ok) return researchGoogleNews(terms, `GDELT_HTTP_${response.status}`);
+    const payload = JSON.parse(await response.text()) as { articles?: Array<{ title?: string; url?: string; seendate?: string; domain?: string }> };
     const retrievedAt = new Date().toISOString();
-    const sources = (payload.articles || []).flatMap((article) => {
-      if (!article.url || !article.title || !/^https?:\/\//i.test(article.url)) return [];
-      return [validateEvidence({ title: article.title.trim(), url: article.url.trim(), domain: article.domain || domainFor(article.url), publication_date: article.seendate ? String(article.seendate) : null, retrieved_at: retrievedAt, claim: `The source headline reports: ${article.title.trim()}` })];
-    }).slice(0, 12);
-    if (!sources.length) return { provider: "gdelt", status: "unavailable", sources: [], claims: [], retrievedAt, error: "Insufficient evidence available." };
+    const sources: Evidence[] = [];
+    for (const article of payload.articles || []) {
+      if (!article.url || !article.title) continue;
+      const evidence = await fetchPublisherEvidence(article.title.trim(), article.url.trim(), null, article.seendate ? String(article.seendate) : null, retrievedAt, terms);
+      if (evidence) sources.push(evidence);
+      if (sources.length >= 12) break;
+    }
+    if (!sources.length) return researchGoogleNews(terms, "GDELT_NO_VALIDATED_EVIDENCE");
     return { provider: "gdelt", status: "available", sources, claims: sources.map((source) => source.claim), retrievedAt };
-  } catch {
-    return { provider: "gdelt", status: "unavailable", sources: [], claims: [], retrievedAt: null, error: "RESEARCH TEMPORARILY UNAVAILABLE" };
-  }
+  } catch { return researchGoogleNews(terms, "GDELT_REQUEST_FAILED"); }
 }
 
 const responseSchema = {
-  type: "object",
-  properties: {
-    market_readiness: { type: "string", enum: ["HIGH", "MEDIUM", "LOW", "INSUFFICIENT DATA"] },
-    readiness_reason: { type: "string" }, recommended_launch_window: { type: "string" }, launch_reasoning: { type: "string" }, confidence: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] }, confidence_reason: { type: "string" }, reasoning: { type: "string" },
-    key_findings: { type: "array", items: { type: "string" } },
+  type: "object", properties: {
+    market_readiness: { type: "string", enum: ["HIGH", "MEDIUM", "LOW", "INSUFFICIENT DATA"] }, readiness_reason: { type: "string" }, recommended_launch_window: { type: "string" }, launch_reasoning: { type: "string" }, confidence: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] }, confidence_reason: { type: "string" }, reasoning: { type: "string" }, key_findings: { type: "array", items: { type: "string" } },
     signals: { type: "array", items: { type: "object", properties: { signal_type: { type: "string" }, rating: { type: "string" }, explanation: { type: "string" }, evidence: { type: "array", items: { type: "string" } } }, required: ["signal_type", "rating", "explanation", "evidence"] } },
     recommendations: { type: "array", items: { type: "object", properties: { recommendation_type: { type: "string", enum: ["opportunity", "risk", "action"] }, priority: { type: "string", enum: ["HIGH", "MEDIUM", "LOW"] }, title: { type: "string" }, detail: { type: "string" }, evidence: { type: "array", items: { type: "string" } } }, required: ["recommendation_type", "priority", "title", "detail", "evidence"] } },
-  },
-  required: ["market_readiness", "readiness_reason", "recommended_launch_window", "launch_reasoning", "confidence", "confidence_reason", "reasoning", "key_findings", "signals", "recommendations"],
+  }, required: ["market_readiness", "readiness_reason", "recommended_launch_window", "launch_reasoning", "confidence", "confidence_reason", "reasoning", "key_findings", "signals", "recommendations"],
 };
 
 export async function synthesizeMarketAnalysis(product: Record<string, unknown>, sources: Evidence[]): Promise<MarketAnalysis> {
@@ -134,7 +171,6 @@ export async function synthesizeMarketAnalysis(product: Record<string, unknown>,
   const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
   const text = payload.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error("Gemini returned no structured market analysis.");
-  let parsed: unknown;
-  try { parsed = JSON.parse(text); } catch { throw new Error("Gemini returned invalid structured market analysis."); }
+  let parsed: unknown; try { parsed = JSON.parse(text); } catch { throw new Error("Gemini returned invalid structured market analysis."); }
   return validateAnalysis(parsed);
 }
