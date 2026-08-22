@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
+
+@layer base {
+  :root {
+    /* Newsprint Colors */
+    --background: 60 20% 97%; /* #F9F9F7 */
+    --foreground: 0 0% 7%; /* #111111 */
+
+    --card: 60 20% 97%;
+    --card-foreground: 0 0% 7%;
+
+    --popover: 60 20% 97%;
+    --popover-foreground: 0 0% 7%;
+
+    --muted: 60 9% 89%; /* #E5E5E0 */
+    --muted-foreground: 0 0% 45%; /* #737373 neutral-500 */
+
+    --accent: 0 100% 40%; /* #CC0000 */
+    --accent-foreground: 60 20% 97%;
+
+    --destructive: 0 100% 40%; /* #CC0000 */
+    --destructive-foreground: 60 20% 97%;
+
+    --border: 0 0% 7%;
+    --input: 0 0% 7%;
+    --ring: 0 0% 7%;
+
+    --primary: 0 0% 7%;
+    --primary-foreground: 60 20% 97%;
+
+    --secondary: 60 9% 89%;
+    --secondary-foreground: 0 0% 7%;
+
+    --radius: 0px;
+  }
+
+  .dark {
+    /* Permanent light mode, but fallback to same */
+    --background: 60 20% 97%;
+    --foreground: 0 0% 7%;
+    --card: 60 20% 97%;
+    --card-foreground: 0 0% 7%;
+    --popover: 60 20% 97%;
+    --popover-foreground: 0 0% 7%;
+    --muted: 60 9% 89%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 100% 40%;
+    --accent-foreground: 60 20% 97%;
+    --destructive: 0 100% 40%;
+    --destructive-foreground: 60 20% 97%;
+    --border: 0 0% 7%;
+    --input: 0 0% 7%;
+    --ring: 0 0% 7%;
+    --primary: 0 0% 7%;
+    --primary-foreground: 60 20% 97%;
+    --secondary: 60 9% 89%;
+    --secondary-foreground: 0 0% 7%;
+    --radius: 0px;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='%23111111' fill-opacity='0.04' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E");
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif font-bold text-foreground;
+  }
+
+  a {
+    @apply text-foreground transition-colors;
+  }
+}
+
+@layer utilities {
+  .sharp-corners {
+    border-radius: 0px !important;
+  }
+  
+  .newsprint-texture {
+    position: relative;
+  }
+  .newsprint-texture::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(0deg, transparent 98%, rgba(0,0,0,0.02) 100%),
+      linear-gradient(90deg, transparent 98%, rgba(0,0,0,0.02) 100%);
+    background-size: 3px 3px;
+    pointer-events: none;
+    opacity: 0.5;
+  }
+
+  .hard-shadow-hover:hover {
+    box-shadow: 4px 4px 0px 0px #111111;
+    transform: translate(-2px, -2px);
+  }
+}
