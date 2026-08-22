@@ -55,6 +55,20 @@ export async function signUp(formData: FormData) {
 
 
 
+export async function signInWithGoogle() {
+  const supabase = await createClient();
+  const headersList = await headers();
+  const host = headersList.get("x-forwarded-host") ?? headersList.get("host");
+  const protocol = headersList.get("x-forwarded-proto") ?? "https";
+  const origin = headersList.get("origin") ?? `${protocol}://${host}`;
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: `${origin}/auth/callback` },
+  });
+  if (error || !data.url) redirect(authErrorPath("/login", error?.message || "Unable to start Google sign-in."));
+  redirect(data.url);
+}
+
 export async function forgotPassword(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const supabase = await createClient();

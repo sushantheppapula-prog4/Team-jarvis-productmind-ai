@@ -4,7 +4,7 @@
   "description": "An AI-powered Product Discovery & User Research Intelligence platform",
   "private": true,
   "scripts": {
-    "dev": "env -u NEXT_PUBLIC_SUPABASE_URL -u NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY next dev -p 3000 -H 0.0.0.0",
+    "dev": "next dev -p 3000 -H 0.0.0.0",
     "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint"
