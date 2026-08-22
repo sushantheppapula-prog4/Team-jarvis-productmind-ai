@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, getRateLimitContext } from "@/lib/rate-limit";
+import { getSafeAuthError } from "@/lib/supabase/config";
 
 function credentials(formData: FormData) {
   return {
@@ -20,10 +21,13 @@ export async function signIn(formData: FormData) {
   const rl = await checkRateLimit("login", rlContext);
   if (!rl.success) redirect(authErrorPath("/login", "Too many login attempts. Please try again later."));
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(credentials(formData));
-
-  if (error) redirect(authErrorPath("/login", error.message));
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signInWithPassword(credentials(formData));
+    if (error) redirect(authErrorPath("/login", getSafeAuthError(error)));
+  } catch (error) {
+    redirect(authErrorPath("/login", getSafeAuthError(error)));
+  }
 
   const nextPath = String(formData.get("next") ?? "/dashboard");
   redirect(nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/dashboard");
@@ -39,18 +43,21 @@ export async function signUp(formData: FormData) {
   const rl = await checkRateLimit("signup", rlContext);
   if (!rl.success) redirect(authErrorPath("/sign-up", "Too many signup attempts. Please try again later."));
 
-  const supabase = await createClient();
-  
-  const { error, data } = await supabase.auth.signUp({
-    ...credentials(formData),
-    options: { emailRedirectTo: `${origin}/auth/confirm` },
-  });
+  try {
+    const supabase = await createClient();
+    const { error, data } = await supabase.auth.signUp({
+      ...credentials(formData),
+      options: { emailRedirectTo: `${origin}/auth/confirm` },
+    });
 
-  if (error) redirect(authErrorPath("/sign-up", error.message));
+    if (error) redirect(authErrorPath("/sign-up", getSafeAuthError(error)));
 
-  if (!data.session) redirect("/login?message=Check your email to confirm your account.");
+    if (!data.session) redirect("/login?message=Check your email to confirm your account.");
 
-  redirect("/dashboard");
+    redirect("/dashboard");
+  } catch (error) {
+    redirect(authErrorPath("/sign-up", getSafeAuthError(error)));
+  }
 }
 
 
