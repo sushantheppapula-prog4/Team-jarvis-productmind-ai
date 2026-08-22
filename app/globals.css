@@ -112,3 +112,12 @@
     transform: translate(-2px, -2px);
   }
 }
+
+@keyframes dotDrift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 32px 16px;
+  }
+}

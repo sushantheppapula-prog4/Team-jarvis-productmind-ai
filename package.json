@@ -1,11 +1,11 @@
 {
-  "name": "productmind-ai",
+  "name": "clyra-ai",
   "version": "0.1.0",
   "description": "An AI-powered Product Discovery & User Research Intelligence platform",
   "private": true,
   "scripts": {
     "dev": "env -u NEXT_PUBLIC_SUPABASE_URL -u NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY next dev -p 3000 -H 0.0.0.0",
-    "build": "next build",
+    "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -24,7 +24,7 @@
     "framer-motion": "^11.0.3",
     "lru-cache": "^11.5.2",
     "lucide-react": "^0.408.0",
-    "next": "^14.2.16",
+    "next": "^14.2.3",
     "next-themes": "^0.4.6",
     "pdf-parse": "^2.4.5",
     "react": "^18.2.0",

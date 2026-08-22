@@ -1,4 +1,4 @@
-# ProductMind AI - Premium Design System ✨
+# Clyra - Premium Design System ✨
 
 ## Overview
 
@@ -125,7 +125,7 @@ Padding: none, sm, md, lg, xl
 ## File Structure
 
 ```
-productmind-ai/
+clyra-ai/
 ├── app/
 │   ├── globals.css              # Design tokens + base styles
 │   ├── layout.tsx               # Root layout with providers
@@ -349,4 +349,4 @@ This design system is:
 
 ---
 
-**ProductMind AI - Premium Design System is production-ready and waiting for you to build something amazing!** 🚀
+**Clyra - Premium Design System is production-ready and waiting for you to build something amazing!** 🚀

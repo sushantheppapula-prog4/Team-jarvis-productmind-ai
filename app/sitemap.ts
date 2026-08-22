@@ -1,7 +1,7 @@
 import { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://productmind.ai";
+  const baseUrl = "https://clyra.ai";
   const routes = ["", "/pricing", "/faq", "/contact", "/terms", "/privacy", "/login", "/sign-up"];
 
   return routes.map((route) => ({

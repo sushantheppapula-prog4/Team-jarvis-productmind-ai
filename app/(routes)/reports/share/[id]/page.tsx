@@ -66,8 +66,8 @@ export default function SharedReportPage() {
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-8 overflow-y-auto max-h-screen">
       <div className="flex flex-col space-y-2 border-b border-[#111111] pb-4">
-        <span className="text-xs font-semibold text-primary uppercase tracking-wider">ProductMind AI • Read Only Shared Report</span>
-        <h1 className="text-3xl font-extrabold text-[#111111]">{reportData?.title || "Executive Summary"}</h1>
+        <span className="text-xs font-semibold text-primary uppercase tracking-wider">Clyra • Read Only Shared Report</span>
+        <h1 className="text-3xl font-extrabold text-[#111111]">{reportData?.title || "Customer Intelligence Summary"}</h1>
       </div>
 
       {isLoading ? (

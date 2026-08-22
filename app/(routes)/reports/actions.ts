@@ -329,7 +329,7 @@ export async function generateExecutiveSummary() {
       const model = "gemini-2.5-flash";
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-      const prompt = `You are a senior product management executive. Based on the customer insights and feedback items provided below, generate a comprehensive Executive Summary report.
+      const prompt = `You are a senior product management executive. Based on the customer insights and feedback items provided below, generate a comprehensive Customer Intelligence Summary report.
 
 Customer Insights:
 ${rawInsights.map(i => `- [${i.category}]: ${i.title} - ${i.summary}`).join("\n")}
@@ -339,7 +339,7 @@ ${rawItems.map(item => `- ${item.content}`).join("\n")}
 
 Generate the report in JSON format with the following keys:
 {
-  "title": "Executive Summary Report",
+  "title": "Customer Intelligence Report",
   "overall_sentiment": "Positive" | "Negative" | "Mixed" | "Neutral",
   "sentiment_summary": "Short paragraph analyzing overall customer sentiment and key satisfaction drivers.",
   "top_pain_points": ["Pain point 1", "Pain point 2", "Pain point 3"],
@@ -390,7 +390,7 @@ Generate the report in JSON format with the following keys:
     .insert({
       project_id: project.id,
       user_id: user.id,
-      title: reportData.title || "Executive Summary",
+      title: reportData.title || "Customer Intelligence Summary",
       report_type: "executive_summary",
       status: "ready",
       content: reportData,
@@ -417,7 +417,7 @@ function fallbackSummary(insights: any[], feedbackItems: any[]) {
   else if (positiveCount === 0 && negativeCount > 0) overallSentiment = "Negative";
 
   return {
-    title: "Executive Summary Report",
+    title: "Customer Intelligence Report",
     overall_sentiment: overallSentiment,
     sentiment_summary: `The overall sentiment is parsed as ${overallSentiment.toLowerCase()} based on user reports of pain points and praises.`,
     top_pain_points: painPoints.length > 0 ? painPoints.slice(0, 3) : ["Usability friction in filters", "System latency under heavy loads"],

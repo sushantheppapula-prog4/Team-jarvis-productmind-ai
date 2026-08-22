@@ -1,4 +1,4 @@
-# ProductMind AI - Component Library
+# Clyra - Component Library
 
 ## Available Components
 

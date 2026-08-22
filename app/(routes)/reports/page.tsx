@@ -67,7 +67,7 @@ const itemVariants = {
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState<"executive" | "health" | "roadmap">("executive");
   
-  // Executive Summary states
+  // Customer Intelligence Summary states
   const [report, setReport] = useState<any | null>(null);
   const [isLoadingExec, setIsLoadingExec] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -88,7 +88,7 @@ export default function ReportsPage() {
   const [copied, setCopied] = useState(false);
   const [isSharingToggling, setIsSharingToggling] = useState(false);
 
-  // Load Executive Summary
+  // Load Customer Intelligence Summary
   useEffect(() => {
     async function loadExecReport() {
       try {
@@ -254,7 +254,7 @@ export default function ReportsPage() {
             activeTab === "executive" ? "border-primary text-[#111111]" : "border-transparent text-[#525252] hover:text-[#111111]"
           }`}
         >
-          Executive Summary
+          Customer Intelligence Summary
         </button>
         <button
           onClick={() => setActiveTab("health")}
@@ -431,7 +431,7 @@ export default function ReportsPage() {
             className="rounded-none border-2 border-[#111111] bg-[#F9F9F7] p-12 text-center"
           >
             <BarChart3 className="h-12 w-12 text-[#525252] mx-auto mb-4 opacity-50" />
-            <h2 className="text-xl font-semibold mb-2">No Executive Summary Yet</h2>
+            <h2 className="text-xl font-semibold mb-2">No Customer Intelligence Summary Yet</h2>
             <p className="text-[#525252] mb-6 max-w-sm mx-auto">
               Compile customer feedback files and run analysis insights first to compose your summary.
             </p>
@@ -446,7 +446,7 @@ export default function ReportsPage() {
                   Generating Summary...
                 </span>
               ) : (
-                "Generate Executive Summary"
+                "Generate Customer Intelligence Summary"
               )}
             </button>
           </motion.div>
@@ -725,7 +725,7 @@ export default function ReportsPage() {
             className="w-full max-w-md rounded-none border-2 border-[#111111] bg-[#F9F9F7] p-6 shadow-2xl space-y-4 text-left"
           >
             <div className="flex justify-between items-start">
-              <h3 className="text-lg font-bold text-[#111111]">Share Executive Summary</h3>
+              <h3 className="text-lg font-bold text-[#111111]">Share Customer Intelligence Summary</h3>
               <button
                 onClick={() => setIsShareModalOpen(false)}
                 className="text-[#525252] hover:text-[#111111] text-sm font-semibold transition-colors p-1"

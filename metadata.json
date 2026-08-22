@@ -1,6 +1,6 @@
 {
-  "name": "ProductMind AI",
-  "description": "An AI-powered Product Discovery & User Research Intelligence platform",
+  "name": "Clyra",
+  "description": "AI-powered customer intelligence that transforms unstructured feedback into actionable product insights.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

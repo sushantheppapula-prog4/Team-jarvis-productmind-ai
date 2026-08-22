@@ -1,4 +1,4 @@
-// PRODUCTMIND AI - COMPONENT SHOWCASE & USAGE EXAMPLES
+// CLYRA AI - COMPONENT SHOWCASE & USAGE EXAMPLES
 // This file demonstrates all available components and their variants
 
 import { Button } from "@/components/ui/button";

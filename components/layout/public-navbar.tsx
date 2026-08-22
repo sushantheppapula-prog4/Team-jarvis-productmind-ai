@@ -1,9 +1,12 @@
+"use client";
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ClyraLogoSymbol } from "@/components/ui/clyra-logo";
+
 
 export function PublicNavbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -29,9 +32,10 @@ export function PublicNavbar() {
       <div className="border-b-4 border-[#111111] transition-all duration-300">
         <div className="mx-auto flex h-16 max-w-screen-xl items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* Logo */}
-          <Link href="/" className="flex items-center group">
-            <span className="font-serif text-3xl font-black tracking-tighter text-[#111111] uppercase">
-              ProductMind
+          <Link href="/" className="flex flex-col items-center justify-center group py-2">
+            <ClyraLogoSymbol className="w-5 h-5 text-[#111111] mb-0.5" />
+            <span className="font-serif text-[1.4rem] leading-none font-black tracking-tighter text-[#111111] uppercase">
+              Clyra
             </span>
           </Link>
 

@@ -11,7 +11,7 @@ function credentials(formData: FormData) {
   };
 }
 
-function authErrorPath(path: "/login" | "/sign-up", message: string) {
+function authErrorPath(path: string, message: string) {
   return `${path}?error=${encodeURIComponent(message)}`;
 }
 
@@ -54,3 +54,34 @@ export async function signUp(formData: FormData) {
 }
 
 
+
+export async function forgotPassword(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+  const supabase = await createClient();
+  const headersList = await headers();
+  const host = headersList.get("x-forwarded-host") ?? headersList.get("host");
+  const protocol = headersList.get("x-forwarded-proto") ?? "https";
+  const origin = headersList.get("origin") ?? `${protocol}://${host}`;
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/reset-password`,
+  });
+
+  if (error) redirect(authErrorPath("/forgot-password", error.message));
+  redirect("/forgot-password?message=Check your email for the reset link.");
+}
+
+export async function resetPassword(formData: FormData) {
+  const password = String(formData.get("password") ?? "");
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) redirect(authErrorPath("/reset-password", error.message));
+  redirect("/login?message=Password updated successfully.");
+}
+
+export async function logout() {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  redirect("/login");
+}

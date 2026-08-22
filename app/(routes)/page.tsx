@@ -1,4 +1,6 @@
 "use client";
+import { ClyraLogoSymbol } from "@/components/ui/clyra-logo";
+
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
@@ -20,15 +22,15 @@ const features = [
     description: "Automatically categorize signals into feature requests, pain points, and bugs. Keep a live pulse on feature desires.",
   },
   {
-    title: "Executive Summaries",
+    title: "Intelligence Reports",
     description: "Generate stakeholder-ready reports and shareable roadmap links. Turn technical analysis into strategic alignment.",
   }
 ];
 
 const faqs = [
   {
-    question: "How does ProductMind AI analyze customer feedback?",
-    answer: "ProductMind AI uses a Retrieval-Augmented Generation (RAG) pipeline combined with Gemini models. It parses your uploaded transcripts, support tickets, and files, indexes them securely, and allows you to query customer sentiments with exact citation of source files.",
+    question: "How does Clyra analyze customer feedback?",
+    answer: "Clyra uses a Retrieval-Augmented Generation (RAG) pipeline combined with Gemini models. It parses your uploaded transcripts, support tickets, and files, indexes them securely, and allows you to query customer sentiments with exact citation of source files.",
   },
   {
     question: "What file formats are supported for uploads?",
@@ -36,7 +38,7 @@ const faqs = [
   },
   {
     question: "Is my customer data secure?",
-    answer: "Yes. Data privacy is a core pillar of ProductMind. All files are securely stored, and we never use your proprietary data to train public models. Database structures enforce complete segregation of organization workspaces.",
+    answer: "Yes. Data privacy is a core pillar of Clyra. All files are securely stored, and we never use your proprietary data to train public models. Database structures enforce complete segregation of organization workspaces.",
   },
 ];
 
@@ -73,16 +75,7 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
 export default function Home() {
   return (
     <div className="min-h-screen bg-[#F9F9F7] text-[#111111] newsprint-texture">
-      {/* Marquee Ticker */}
-      <div className="w-full overflow-hidden whitespace-nowrap bg-[#111111] py-2 text-[#F9F9F7] flex border-b-4 border-[#111111]">
-        <div className="inline-block animate-[marquee_20s_linear_infinite] font-mono text-xs uppercase tracking-widest">
-          <span className="mx-4 text-[#CC0000]">BREAKING:</span> LOWEST PRICE EVER FOR SUBSCRIPTION!
-          <span className="mx-4">|</span> HURRY, LIMITED TIME OFFER!
-          <span className="mx-4">|</span> <span className="text-[#CC0000]">BREAKING:</span> LOWEST PRICE EVER FOR SUBSCRIPTION!
-          <span className="mx-4">|</span> HURRY, LIMITED TIME OFFER!
-          <span className="mx-4">|</span>
-        </div>
-      </div>
+      
 
       <div className="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 border-l border-r border-[#111111]">
         
@@ -91,12 +84,14 @@ export default function Home() {
           {/* Main Headline (8 cols) */}
           <div className="lg:col-span-8 border-b lg:border-b-0 lg:border-r border-[#111111] py-16 lg:py-24 pr-0 lg:pr-12">
             <Badge variant="primary" className="mb-6">The Global Authority in Discovery</Badge>
-            <h1 className="font-serif text-5xl sm:text-6xl lg:text-8xl font-black leading-[0.9] tracking-tighter text-[#111111] uppercase mb-8">
-              Every customer signal, actionable strategy instantly.
+            <h1 className="font-serif font-black leading-[1.05] tracking-tight text-[#111111] uppercase mb-8 text-left whitespace-nowrap text-[clamp(1.4rem,6.5vw,3rem)] md:text-[clamp(2.5rem,5.5vw,4.5rem)] lg:text-[clamp(3.5rem,5vw,6rem)]">
+              CONNECT WITH US,<br />
+              STAY WITH VIBE,<br />
+              GROW WITH STRATEGY.
             </h1>
             <p className="font-body text-lg sm:text-xl leading-relaxed max-w-2xl text-[#111111] mb-8 text-justify">
-              <span className="float-left text-7xl leading-none font-black mr-2 font-serif text-[#111111]">C</span>
-              onnect raw interviews, support logs, and feedback directly to your product discovery loop. Powered by advanced Retrieval-Augmented Generation and Google Gemini AI, ProductMind eliminates the guesswork from product development.
+              <span className="float-left text-7xl leading-none font-black mr-2 font-serif text-[#111111]">A</span>
+              I-powered customer intelligence that transforms unstructured feedback into actionable product insights.
             </p>
             <Link href="/dashboard">
               <Button size="xl" className="w-full sm:w-auto shadow-[4px_4px_0px_0px_#111111] hover:translate-x-[-2px] hover:translate-y-[-2px] active:translate-x-[0px] active:translate-y-[0px] active:shadow-none transition-all">
@@ -108,7 +103,13 @@ export default function Home() {
           {/* Sidebar Editor's Note (4 cols) */}
           <div className="lg:col-span-4 p-8 lg:p-12 bg-[#F9F9F7]">
             <h3 className="font-mono text-xs uppercase tracking-widest border-b border-[#111111] pb-2 mb-6">Editor&apos;s Note</h3>
-            <div className="aspect-[4/3] w-full border border-[#111111] mb-6 bg-[radial-gradient(#000_1px,transparent_1px)] opacity-20 [background-size:16px_16px] grayscale hover:sepia-[50%] transition-all duration-500" />
+            <div className="relative aspect-[4/3] w-full border border-[#111111] mb-6 flex items-center justify-center overflow-hidden">
+              <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(0,0,0,1)_1px,transparent_1px)] opacity-20 [background-size:16px_16px] animate-[dotDrift_12s_linear_infinite]" />
+              {/* Floating Logo */}
+              <div className="relative z-10 filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.15)]">
+                <ClyraLogoSymbol className="w-24 h-24 md:w-32 md:h-32 text-[#111111]" />
+              </div>
+            </div>
             <h4 className="font-serif text-2xl font-bold mb-4 leading-tight">The Death of Manual Tagging</h4>
             <p className="font-body text-sm leading-relaxed mb-6">
               For decades, product managers have relied on intuition and manual spreadsheets to decode what users truly desire. Today, that era ends. We present the definitive system for automated feedback analysis.
@@ -216,7 +217,7 @@ export default function Home() {
             
             <div className="mt-12 p-6 border border-[#111111] bg-[#F9F9F7] text-center">
               <div className="font-serif text-2xl mb-4">&#x2727; &#x2727; &#x2727;</div>
-              <p className="font-body text-sm italic mb-4">&quot;ProductMind has entirely replaced our manual tagging process. It&apos;s like having an infinite team of researchers.&quot;</p>
+              <p className="font-body text-sm italic mb-4">&quot;Clyra has entirely replaced our manual tagging process. It&apos;s like having an infinite team of researchers.&quot;</p>
               <div className="font-mono text-xs uppercase tracking-widest font-bold">— Director of Product, TechCorp</div>
             </div>
           </div>

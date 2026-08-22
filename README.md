@@ -1,4 +1,4 @@
-# ProductMind AI
+# Clyra
 
 An AI-powered Product Discovery & User Research Intelligence platform that transforms customer interviews, support tickets, surveys, reviews and feature requests into actionable product insights.
 
@@ -23,7 +23,7 @@ An AI-powered Product Discovery & User Research Intelligence platform that trans
 ## Project Structure
 
 ```
-productmind-ai/
+clyra-ai/
 ├── app/
 │   ├── layout.tsx              # Root layout with navigation
 │   ├── globals.css             # Global styles

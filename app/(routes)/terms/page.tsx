@@ -12,14 +12,14 @@ export default function TermsPage() {
           <section className="space-y-2">
             <h2 className="text-lg font-bold text-foreground">1. Acceptance of Terms</h2>
             <p>
-              By accessing and using ProductMind AI, you agree to comply with and be bound by these Terms of Service. If you do not agree, please do not use the application.
+              By accessing and using Clyra, you agree to comply with and be bound by these Terms of Service. If you do not agree, please do not use the application.
             </p>
           </section>
 
           <section className="space-y-2">
             <h2 className="text-lg font-bold text-foreground">2. Description of Service</h2>
             <p>
-              ProductMind AI provides an AI-powered customer feedback research and reporting platform. We process uploaded files to output insights and enable query interactions.
+              Clyra provides an AI-powered customer feedback research and reporting platform. We process uploaded files to output insights and enable query interactions.
             </p>
           </section>
 

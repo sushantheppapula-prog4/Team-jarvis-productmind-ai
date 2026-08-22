@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/dashboard/", "/chat/", "/upload/", "/insights/", "/reports/", "/settings/"],
     },
-    sitemap: "https://productmind.ai/sitemap.xml",
+    sitemap: "https://clyra.ai/sitemap.xml",
   };
 }

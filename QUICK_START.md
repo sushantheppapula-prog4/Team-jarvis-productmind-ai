@@ -1,4 +1,4 @@
-# Quick Start Guide - ProductMind AI Design System
+# Quick Start Guide - Clyra Design System
 
 ## Installation & Setup
 
@@ -290,4 +290,4 @@ import { motion } from "framer-motion";
 
 ---
 
-Ready to build? Start creating amazing UIs with ProductMind's design system! 🚀
+Ready to build? Start creating amazing UIs with Clyra's design system! 🚀

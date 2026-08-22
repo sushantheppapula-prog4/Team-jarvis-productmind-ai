@@ -98,10 +98,10 @@ export function Footer() {
 
         <div className="border-t border-border pt-8 flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            © 2024 ProductMind AI. All rights reserved.
+            © 2024 Clyra. All rights reserved.
           </p>
           <p className="text-sm text-muted-foreground">
-            Built for product teams that care about insights.
+            AI-powered customer intelligence that transforms unstructured feedback into actionable product insights.
           </p>
         </div>
       </div>

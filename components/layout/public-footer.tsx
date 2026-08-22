@@ -11,11 +11,11 @@ export function PublicFooter() {
           <div className="col-span-2 md:col-span-2 lg:col-span-3 space-y-4">
             <Link href="/" className="flex items-center">
               <span className="font-serif text-2xl font-black tracking-tighter text-[#111111] uppercase">
-                ProductMind
+                Clyra
               </span>
             </Link>
             <p className="text-sm font-serif text-[#111111] max-w-xs leading-relaxed">
-              Connecting customer signals to actionable product strategy roadmaps instantly.
+              AI-powered customer intelligence that transforms unstructured feedback into actionable product insights.
             </p>
             <div className="flex gap-4 pt-4">
               <a href="#" className="flex h-10 w-10 items-center justify-center border border-[#111111] text-[#111111] hover:bg-[#111111] hover:text-[#F9F9F7] transition-all">
@@ -99,7 +99,7 @@ export function PublicFooter() {
 
         <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="font-mono text-xs uppercase tracking-widest text-[#111111]">
-            &copy; {new Date().getFullYear()} ProductMind AI.
+            &copy; {new Date().getFullYear()} Clyra.
           </p>
           <p className="font-mono text-xs uppercase tracking-widest text-[#111111]">
             Edition: Vol 1.0 | Printed in Global

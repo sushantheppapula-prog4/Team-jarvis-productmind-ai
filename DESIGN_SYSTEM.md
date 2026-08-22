@@ -1,4 +1,4 @@
-# ProductMind AI - Design System
+# Clyra - Design System
 
 ## Color Palette
 
@@ -288,4 +288,4 @@ import { Input } from "@/components/ui/input";
 
 ---
 
-This design system ensures consistency, maintainability, and a premium feel across ProductMind AI.
+This design system ensures consistency, maintainability, and a premium feel across Clyra.

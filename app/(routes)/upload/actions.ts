@@ -782,7 +782,7 @@ export async function analyzeFeedback(sourceId: string, projectId: string) {
   try {
     const { generateExecutiveSummary } = await import("../reports/actions");
     await generateExecutiveSummary();
-    console.log(" [Analyze Action] Executive Summary generated and saved successfully.");
+    console.log(" [Analyze Action] Customer Intelligence Summary generated and saved successfully.");
   } catch (reportError: any) {
     console.error(" [Analyze Action] Executive report generation error:", reportError);
     // We don't fail the whole upload if only report fails, but we log it.

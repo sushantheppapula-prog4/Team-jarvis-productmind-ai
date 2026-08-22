@@ -30,7 +30,7 @@ export default function FAQPage() {
             <HelpCircle className="h-8 w-8" />
           </div>
           <h1 className="text-4xl font-extrabold text-foreground">Frequently Asked Questions</h1>
-          <p className="text-lg text-muted-foreground">Find fast answers to common questions about ProductMind AI.</p>
+          <p className="text-lg text-muted-foreground">Find fast answers to common questions about Clyra.</p>
         </div>
 
         <div className="space-y-6">
