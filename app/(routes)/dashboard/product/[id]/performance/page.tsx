@@ -1,14 +1,10 @@
-export default function PlaceholderPage() {
-  return (
-    <div className="p-8 lg:p-12 min-h-screen bg-[#F9F9F7] flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="font-serif text-3xl font-bold text-[#111111] mb-4 uppercase">
-          PERFORMANCE
-        </h1>
-        <p className="font-mono text-xs uppercase tracking-widest text-[#525252]">
-          This module will be implemented in a future phase.
-        </p>
-      </div>
-    </div>
-  );
+import { getProduct } from "@/app/(routes)/dashboard/product/actions";
+import { getPerformanceContext } from "@/app/(routes)/dashboard/product/performance-actions";
+import { PerformanceReportView } from "@/components/product/performance-report";
+
+export default async function PerformancePage({ params }: { params: { id: string } }) {
+  const { product, error } = await getProduct(params.id);
+  if (error || !product) return <div className="p-10 font-mono text-xs uppercase text-[#CC0000]">{error || "Product not found."}</div>;
+  const context = await getPerformanceContext(product.id);
+  return <PerformanceReportView productId={product.id} productName={product.name} report={context.report} marketAvailable={context.marketAvailable} reviewAvailable={context.reviewAvailable} initialMessage={context.error} />;
 }
