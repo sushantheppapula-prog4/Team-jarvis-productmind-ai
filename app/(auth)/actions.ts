@@ -21,13 +21,15 @@ export async function signIn(formData: FormData) {
   const rl = await checkRateLimit("login", rlContext);
   if (!rl.success) redirect(authErrorPath("/login", "Too many login attempts. Please try again later."));
 
+  let authError: unknown = null;
   try {
     const supabase = await createClient();
-    const { error } = await supabase.auth.signInWithPassword(credentials(formData));
-    if (error) redirect(authErrorPath("/login", getSafeAuthError(error)));
+    authError = (await supabase.auth.signInWithPassword(credentials(formData))).error;
   } catch (error) {
-    redirect(authErrorPath("/login", getSafeAuthError(error)));
+    authError = error;
   }
+
+  if (authError) redirect(authErrorPath("/login", getSafeAuthError(authError)));
 
   const nextPath = String(formData.get("next") ?? "/dashboard");
   redirect(nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/dashboard");
@@ -43,21 +45,23 @@ export async function signUp(formData: FormData) {
   const rl = await checkRateLimit("signup", rlContext);
   if (!rl.success) redirect(authErrorPath("/sign-up", "Too many signup attempts. Please try again later."));
 
+  let authError: unknown = null;
+  let authData: { session: unknown } | null = null;
   try {
     const supabase = await createClient();
-    const { error, data } = await supabase.auth.signUp({
+    const result = await supabase.auth.signUp({
       ...credentials(formData),
       options: { emailRedirectTo: `${origin}/auth/confirm` },
     });
-
-    if (error) redirect(authErrorPath("/sign-up", getSafeAuthError(error)));
-
-    if (!data.session) redirect("/login?message=Check your email to confirm your account.");
-
-    redirect("/dashboard");
+    authError = result.error;
+    authData = result.data;
   } catch (error) {
-    redirect(authErrorPath("/sign-up", getSafeAuthError(error)));
+    authError = error;
   }
+
+  if (authError) redirect(authErrorPath("/sign-up", getSafeAuthError(authError)));
+  if (!authData?.session) redirect("/login?message=Check your email to confirm your account.");
+  redirect("/dashboard");
 }
 
 
