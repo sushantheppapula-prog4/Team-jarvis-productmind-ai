@@ -44,12 +44,10 @@ async function validateCandidate(candidate: Candidate, terms: string[], productN
       const evidenceText = content.slice(0, 600);
       return { title: candidate.title, url: finalUrl, domain: domainFor(finalUrl), retrieved_at: new Date().toISOString(), published_at: candidate.publication_date, source_type: sourceType(finalUrl, `${candidate.title} ${content.slice(0, 1000)}`, productName), claim: `Verified publisher evidence excerpt: ${evidenceText}`, evidence_text: evidenceText, is_quote: false };
     }
-    if (candidate.provider === "google-news" && candidate.publisher_url && /^https?:\/\//i.test(candidate.publisher_url) && !/google\./i.test(candidate.publisher_url)) {
-      const publisher = await fetch(candidate.publisher_url, { headers: { accept: "text/html,application/xhtml+xml" }, redirect: "follow", cache: "no-store", signal: AbortSignal.timeout(6000) });
-      if (publisher.ok) {
-        const metadataEvidence = `Google News RSS listed “${candidate.title}” from ${candidate.publisher_name || domainFor(candidate.publisher_url)}. The publisher article URL could not be resolved in this runtime; this source is metadata-level evidence only.`;
-        return { title: candidate.title, url: candidate.publisher_url, domain: domainFor(candidate.publisher_url), retrieved_at: new Date().toISOString(), published_at: candidate.publication_date, source_type: sourceType(candidate.publisher_url, candidate.title, productName), claim: metadataEvidence, evidence_text: metadataEvidence, is_quote: false };
-      }
+    const titleRelevant = candidate.title.toLowerCase().includes(productName.toLowerCase());
+    if (candidate.provider === "google-news" && titleRelevant && candidate.publisher_url && /^https?:\/\//i.test(candidate.publisher_url) && !/google\./i.test(candidate.publisher_url)) {
+      const metadataEvidence = `Google News RSS listed the product-relevant article “${candidate.title}” from ${candidate.publisher_name || domainFor(candidate.publisher_url)}. The publisher article URL could not be resolved in this runtime; this is metadata-level evidence only, not a customer quote or measured statistic.`;
+      return { title: candidate.title, url: candidate.publisher_url, domain: domainFor(candidate.publisher_url), retrieved_at: new Date().toISOString(), published_at: candidate.publication_date, source_type: sourceType(candidate.publisher_url, candidate.title, productName), claim: metadataEvidence, evidence_text: metadataEvidence, is_quote: false };
     }
     return null;
   } catch { return null; }
