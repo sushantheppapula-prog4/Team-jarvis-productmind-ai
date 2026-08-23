@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getProduct } from "@/app/(routes)/dashboard/product/actions";
 import { getLatestMarketAnalysis } from "@/app/(routes)/dashboard/product/market-actions";
 import { AnalyzeMarketButton } from "@/components/product/analyze-market-button";
+import { IntelligenceBarChart, IntelligenceTable } from "@/components/product/intelligence-visuals";
 
 function EvidenceLinks({ evidence, sources }: { evidence: string[]; sources: Array<{ id: string; url: string; title: string }> }) {
   const matches = evidence.map((url) => sources.find((source) => source.url === url)).filter(Boolean) as Array<{ id: string; url: string; title: string }>;
@@ -42,6 +43,8 @@ export default async function MarketSuggestionPage({ params }: { params: { id: s
         <section className="border-t-4 border-[#111111] pt-5"><p className={label}>Readiness Assessment</p><p className="mt-4 font-serif text-2xl font-bold text-[#111111]">{analysis.readiness_reason}</p><p className="mt-4 font-body text-sm leading-7 text-[#525252]">{analysis.launch_reasoning}</p></section>
         <section className="border-t-4 border-[#111111] pt-5"><p className={label}>Confidence Rationale</p><p className="mt-4 font-body text-sm leading-7 text-[#111111]">{analysis.confidence_reason}</p><p className="mt-4 font-body text-sm leading-7 text-[#525252]">{analysis.reasoning}</p></section>
       </div>
+
+      <div className="mt-10 grid gap-8 lg:grid-cols-2"><IntelligenceBarChart title="Stored Signal Coverage" items={Array.from(new Set(signals.map((signal: { rating: string }) => signal.rating))).map((rating) => ({ label: rating, value: signals.filter((signal: { rating: string }) => signal.rating === rating).length }))} /><IntelligenceTable title="Signal Evidence Ledger" columns={["Signal", "Rating", "Explanation"]} rows={signals.map((signal: { signal_type: string; rating: string; explanation: string }) => [signal.signal_type, signal.rating, signal.explanation])} /></div>
 
       <section className="mt-12"><div className="mb-5 border-b-2 border-[#111111] pb-3"><p className={label}>Market Signals</p></div><div className="grid grid-cols-1 gap-0 border-t-2 border-l-2 border-[#111111] md:grid-cols-2">{signals.map((signal: { id: string; signal_type: string; rating: string; explanation: string; evidence: string[] }) => <article key={signal.id} className="border-b-2 border-r-2 border-[#111111] p-6"><div className="flex items-start justify-between gap-4"><p className={label}>{signal.signal_type}</p><span className="font-mono text-[10px] font-bold uppercase tracking-widest text-[#CC0000]">{signal.rating}</span></div><p className="mt-4 font-body text-sm leading-7 text-[#111111]">{signal.explanation}</p><div className="mt-4"><EvidenceLinks evidence={signal.evidence} sources={sources} /></div></article>)}</div></section>
 
