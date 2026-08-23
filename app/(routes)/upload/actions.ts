@@ -248,7 +248,7 @@ async function processAnalysisJob(jobId: string, projectId: string, userId: stri
 
     if (apiKey) {
       try {
-        const model = "gemini-2.5-flash";
+        const model = "gemini-3.6-flash";
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
         const prompt = `You are a product intelligence analyzer. Analyze the following list of customer feedback entries:

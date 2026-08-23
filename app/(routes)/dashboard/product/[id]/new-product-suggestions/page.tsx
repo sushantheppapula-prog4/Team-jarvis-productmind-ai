@@ -1,14 +1,10 @@
-export default function PlaceholderPage() {
-  return (
-    <div className="p-8 lg:p-12 min-h-screen bg-[#F9F9F7] flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="font-serif text-3xl font-bold text-[#111111] mb-4 uppercase">
-          NEW PRODUCT SUGGESTIONS
-        </h1>
-        <p className="font-mono text-xs uppercase tracking-widest text-[#525252]">
-          This module will be implemented in a future phase.
-        </p>
-      </div>
-    </div>
-  );
+import { getProduct } from "@/app/(routes)/dashboard/product/actions";
+import { getIntelligence } from "@/app/(routes)/dashboard/product/intelligence-actions";
+import { IntelligenceModuleView } from "@/components/product/intelligence-module";
+
+export default async function NewProductSuggestionsPage({ params }: { params: { id: string } }) {
+  const { product, error } = await getProduct(params.id);
+  if (error || !product) return <div className="p-10 font-mono text-xs uppercase text-[#CC0000]">{error || "Product not found."}</div>;
+  const report = await getIntelligence(params.id, "suggestions");
+  return <IntelligenceModuleView productId={product.id} module="suggestions" title="New Product Suggestions" description={`What should ${product.name} build next?`} initialReport={report} />;
 }

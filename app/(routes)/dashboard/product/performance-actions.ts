@@ -129,7 +129,7 @@ async function synthesize(product: Record<string, unknown>, market: Awaited<Retu
     `MARKET INTELLIGENCE:\n${JSON.stringify({ analysis: market.analysis, signals: market.signals, sources: market.sources, recommendations: market.recommendations })}`,
     `REVIEW INTELLIGENCE:\n${JSON.stringify(review)}`,
   ].join("\n\n");
-  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": key }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema } }), cache: "no-store" });
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent", { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": key }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema } }), cache: "no-store" });
   if (!response.ok) throw new Error(`Gemini returned HTTP ${response.status}.`);
   const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
   const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text;

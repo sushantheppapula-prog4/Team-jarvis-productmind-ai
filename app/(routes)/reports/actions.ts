@@ -326,7 +326,7 @@ export async function generateExecutiveSummary() {
 
   if (apiKey && (rawInsights.length > 0 || rawItems.length > 0)) {
     try {
-      const model = "gemini-2.5-flash";
+      const model = "gemini-3.6-flash";
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
       const prompt = `You are a senior product management executive. Based on the customer insights and feedback items provided below, generate a comprehensive Customer Intelligence Summary report.

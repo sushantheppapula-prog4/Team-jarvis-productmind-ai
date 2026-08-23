@@ -127,7 +127,7 @@ Upgrade to a Pro or Team plan to unlock conversational Gemini AI consulting capa
     aiResponse = `${fallbackAnswer}\n\n[SUGGESTIONS]\n- How do I upgrade my plan?\n- What is the most critical pain point?\n- Can you detail the feature requests?`;
   } else if (apiKey) {
     try {
-      const model = "gemini-2.5-flash";
+      const model = "gemini-3.6-flash";
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
       const systemPrompt = `You are Clyra, an AI-powered customer intelligence platform. Your role is to analyze unstructured customer feedback and related product information to identify patterns, pain points, opportunities and actionable product insights. Answer the user's question using the provided context of customer feedback and extracted product insights. Be concise, direct, and helpful.
