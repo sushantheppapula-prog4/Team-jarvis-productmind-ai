@@ -113,12 +113,52 @@ export async function getPerformanceContext(productId: string) {
   const market = await getLatestMarketAnalysis(productId);
   const { data: reviewRow } = await supabase.from("product_intelligence_reports").select("report").eq("product_id", productId).eq("module", "review").maybeSingle();
   const { data: saved } = await supabase.from("performance_analyses").select("report").eq("product_id", productId).order("created_at", { ascending: false }).limit(1).maybeSingle();
-  return { product, report: (saved?.report as PerformanceReport | null) || null, marketAvailable: Boolean(market.analysis), reviewAvailable: Boolean(reviewRow?.report && (reviewRow.report as { status?: string }).status === "COMPLETE"), market, error: null };
+  const savedReview = reviewRow?.report as ({ status?: string; synthetic_test_data?: boolean } | null);
+  return { product, report: (saved?.report as PerformanceReport | null) || null, marketAvailable: Boolean(market.analysis), reviewAvailable: Boolean(savedReview && savedReview.status === "COMPLETE" && !savedReview.synthetic_test_data), market, error: null };
 }
 
-async function synthesize(product: Record<string, unknown>, market: Awaited<ReturnType<typeof getLatestMarketAnalysis>>, review: Record<string, unknown>) {
+function rating(score: number): Rating { return score >= 85 ? "EXCELLENT" : score >= 70 ? "GOOD" : score >= 50 ? "MODERATE" : score >= 30 ? "WEAK" : "CRITICAL"; }
+function list(value: unknown): string[] { if (Array.isArray(value)) return value.filter(text); if (text(value)) return value.split(/[,;\n]/).map((item) => item.trim()).filter(Boolean); return []; }
+function evidence(label: string, available: boolean, detail?: string): string { return available && text(detail) ? `${label}: ${detail}` : `${label}: EVIDENCE UNAVAILABLE`; }
+function deterministicPerformance(product: Record<string, unknown>, market: Awaited<ReturnType<typeof getLatestMarketAnalysis>> | null, review: Record<string, unknown> | null): PerformanceReport {
+  const productFeatures = list(product.features);
+  const audience = text(product.target_audience) || text(product.target_market);
+  const marketAnalysis = market?.analysis as Record<string, unknown> | null;
+  const marketSignals = market?.signals || [];
+  const marketRecommendations = market?.recommendations || [];
+  const reviewPercentages = review?.sentiment_percentages as { positive?: number; neutral?: number; negative?: number } | undefined;
+  const reviewObservations = Array.isArray(review?.observations) ? review.observations : [];
+  const marketScore = marketAnalysis ? clampScore(55 + Math.min(25, marketSignals.length * 5)) : 35;
+  const satisfactionScore = reviewPercentages ? clampScore((reviewPercentages.positive || 0) * 0.8 + (reviewPercentages.neutral || 0) * 0.55 + Math.max(0, 100 - (reviewPercentages.negative || 0)) * 0.2) : 35;
+  const valueScore = text(product.pricing) || text(product.price) ? 55 : 35;
+  const competitiveScore = marketAnalysis && marketRecommendations.length ? clampScore(55 + Math.min(25, marketRecommendations.length * 6)) : 35;
+  const qualityScore = reviewObservations.length ? clampScore(45 + Math.min(35, reviewObservations.length * 4)) : productFeatures.length ? 50 : 35;
+  const demandScore = marketSignals.length ? clampScore(50 + Math.min(30, marketSignals.length * 5)) : 35;
+  const differentiationScore = productFeatures.length >= 3 ? 62 : productFeatures.length ? 52 : 35;
+  const growthScore = audience && (marketAnalysis || review) ? 58 : 35;
+  const rawDimensions: Array<[string, number, string, string[]]> = [
+    ["MARKET_FIT", marketScore, marketAnalysis ? "Derived from saved Market Suggestion intelligence and its stored signal count." : "Market Suggestion evidence is unavailable; conservative baseline used.", [evidence("Market analysis", Boolean(marketAnalysis), text(marketAnalysis?.reasoning) ? String(marketAnalysis?.reasoning) : undefined)]],
+    ["CUSTOMER_SATISFACTION", satisfactionScore, reviewPercentages ? "Derived from the saved Review Report sentiment distribution." : "Review sentiment evidence is unavailable; conservative baseline used.", [evidence("Review sentiment", Boolean(reviewPercentages), reviewPercentages ? `${reviewPercentages.positive || 0}% positive, ${reviewPercentages.neutral || 0}% neutral, ${reviewPercentages.negative || 0}% negative` : undefined)]],
+    ["COMPETITIVE_POSITION", competitiveScore, marketRecommendations.length ? "Derived from saved market recommendations; no competitor metric is invented." : "Competitive intelligence is unavailable.", [evidence("Market recommendations", marketRecommendations.length > 0, `${marketRecommendations.length} saved recommendation(s)`)]],
+    ["PRICING_FIT", valueScore, text(product.pricing) || text(product.price) ? "Uses the saved product pricing field; no competitor prices are inferred." : "Product pricing is unavailable.", [evidence("Product pricing", Boolean(text(product.pricing) || text(product.price)), text(product.pricing) || text(product.price) ? String(product.pricing || product.price) : undefined)]],
+    ["FEATURE_FIT", differentiationScore, productFeatures.length ? "Derived from the saved product feature set; customer validation is reported separately." : "Product feature evidence is unavailable.", [evidence("Product features", productFeatures.length > 0, productFeatures.slice(0, 4).join(", "))]],
+    ["GROWTH_POTENTIAL", growthScore, audience ? "Uses the saved audience/market fields and available intelligence; no growth forecast is claimed." : "Target audience evidence is unavailable.", [evidence("Target audience", audience, String(product.target_audience || product.target_market || ""))]],
+  ];
+  const dimensions = rawDimensions.map(([name, score, reasoning, supporting_intelligence]) => ({ name, score, rating: rating(score), reasoning, supporting_intelligence }));
+  const overallScore = Math.round(dimensions.reduce((sum, dimension) => sum + dimension.score, 0) / dimensions.length);
+  const sorted = [...dimensions].sort((a, b) => b.score - a.score);
+  const asItem = (dimension: PerformanceDimension, kind: "working" | "weak"): PerformanceItem => ({ title: dimension.name.replaceAll("_", " "), detail: kind === "working" ? dimension.reasoning : `Needs attention: ${dimension.reasoning}`, evidence: dimension.supporting_intelligence, impact: `${dimension.score}/100`, severity: dimension.score < 40 ? "HIGH" : "MEDIUM" });
+  const working_areas = sorted.filter((dimension) => dimension.score >= 55).slice(0, 4).map((dimension) => asItem(dimension, "working"));
+  const weak_areas = [...dimensions].sort((a, b) => a.score - b.score).filter((dimension) => dimension.score < 70).slice(0, 4).map((dimension) => asItem(dimension, "weak"));
+  const risks: PerformanceItem[] = dimensions.filter((dimension) => dimension.score < 70).slice(0, 4).map((dimension) => ({ title: `${dimension.name.replaceAll("_", " ")} risk`, detail: dimension.reasoning, evidence: dimension.supporting_intelligence, impact: `${dimension.score}/100`, severity: dimension.score < 40 ? "HIGH" : "MEDIUM" }));
+  const opportunities: PerformanceItem[] = dimensions.filter((dimension) => dimension.score >= 55).slice(0, 4).map((dimension) => ({ title: `${dimension.name.replaceAll("_", " ")} opportunity`, detail: "Build on this validated product capability while collecting more evidence.", evidence: dimension.supporting_intelligence, impact: `${dimension.score}/100`, priority: dimension.score >= 70 ? "HIGH" : "MEDIUM" }));
+  const recommendations = { immediate: weak_areas[0] ? `Investigate ${weak_areas[0].title.toLowerCase()} using the next available customer or market evidence.` : "Collect additional product intelligence before prioritizing changes.", short_term: weak_areas[1] ? `Improve ${weak_areas[1].title.toLowerCase()} and measure the resulting customer signal.` : "Validate the strongest product assumptions with the intended audience.", strategic: "Maintain a repeatable evidence review cadence before making scale or launch decisions." };
+  return { title: "05 PERFORMANCE", status: "COMPLETE", overall_score: overallScore, overall_rating: rating(overallScore), overall_reason: "This score is a bounded analytical inference from the saved product profile and available Clyra intelligence. It is not a measured business metric.", dimensions, working_areas, weak_areas, risks, opportunities, recommendations, evidence: [...new Set(dimensions.flatMap((dimension) => dimension.supporting_intelligence))], generated_at: new Date().toISOString() };
+}
+
+async function synthesize(product: Record<string, unknown>, market: Awaited<ReturnType<typeof getLatestMarketAnalysis>> | null, review: Record<string, unknown> | null) {
   const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  if (!key) throw new Error("Gemini is not configured for Performance analysis.");
+  if (!key || !market?.analysis || !review) return deterministicPerformance(product, market, review);
   const prompt = [
     "You are Clyra's evidence-bound product performance analyst.",
     "Produce an AI-DERIVED PERFORMANCE ASSESSMENT from ONLY the supplied saved product, market intelligence, and review intelligence.",
@@ -140,10 +180,9 @@ async function synthesize(product: Record<string, unknown>, market: Awaited<Retu
 export async function analyzePerformance(productId: string, forceRefresh = false) {
   const { supabase, user, product } = await context(productId);
   const market = await getLatestMarketAnalysis(productId);
-  if (!market.analysis) return { report: null, status: "MARKET_REQUIRED" as const, message: "MARKET INTELLIGENCE REQUIRED" };
   const { data: reviewRow } = await supabase.from("product_intelligence_reports").select("report").eq("product_id", productId).eq("module", "review").maybeSingle();
   const review = reviewRow?.report as Record<string, unknown> | null;
-  if (!review || review.status !== "COMPLETE") return { report: null, status: "REVIEW_REQUIRED" as const, message: "CUSTOMER INTELLIGENCE REQUIRED" };
+  const usableReview = review && review.status === "COMPLETE" && !review.synthetic_test_data ? review : null;
   if (!forceRefresh) {
     const { data: cached } = await supabase.from("performance_analyses").select("report").eq("product_id", productId).order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (cached?.report) return { report: cached.report as PerformanceReport, status: "CACHED" as const, message: "COMPLETE" };
@@ -154,20 +193,27 @@ export async function analyzePerformance(productId: string, forceRefresh = false
   try {
     await update("LOADING_CUSTOMER_INTELLIGENCE");
     await update("EVALUATING_PERFORMANCE");
-    const report = await synthesize(product, market, review);
+    let report: PerformanceReport;
+    let synthesisMessage = "COMPLETE";
+    try {
+      report = await synthesize(product, market, usableReview);
+    } catch (error) {
+      report = deterministicPerformance(product, market, usableReview);
+      synthesisMessage = `AI SYNTHESIS UNAVAILABLE — DETERMINISTIC EVIDENCE ASSESSMENT SAVED (${error instanceof Error ? error.message : "Gemini unavailable"})`;
+    }
     await update("GENERATING_RECOMMENDATIONS");
     const analysis = await supabase.from("performance_analyses").insert({ job_id: job.id, user_id: user.id, product_id: productId, overall_score: report.overall_score, overall_rating: report.overall_rating, report }).select("id").single();
     if (analysis.error || !analysis.data) throw new Error("Unable to save Performance analysis.");
     const dimensions = report.dimensions.map((row) => ({ analysis_id: analysis.data.id, job_id: job.id, user_id: user.id, product_id: productId, dimension: row.name, score: row.score, rating: row.rating, reasoning: row.reasoning, supporting_intelligence: row.supporting_intelligence }));
     if ((await supabase.from("performance_dimensions").insert(dimensions)).error) throw new Error("Unable to save Performance dimensions.");
-    const rows = (items: PerformanceItem[], kind: "risk" | "opportunity") => items.map((row) => ({ analysis_id: analysis.data!.id, job_id: job.id, user_id: user.id, product_id: productId, title: row.title, detail: row.detail, evidence: row.evidence, severity: row.severity || row.priority || "MEDIUM", kind }));
-    if (report.risks.length && (await supabase.from("performance_risks").insert(rows(report.risks, "risk"))).error) throw new Error("Unable to save Performance risks.");
-    if (report.opportunities.length && (await supabase.from("performance_opportunities").insert(rows(report.opportunities, "opportunity"))).error) throw new Error("Unable to save Performance opportunities.");
+    const rows = (items: PerformanceItem[]) => items.map((row) => ({ analysis_id: analysis.data!.id, job_id: job.id, user_id: user.id, product_id: productId, title: row.title, detail: row.detail, evidence: row.evidence, severity: row.severity || row.priority || "MEDIUM" }));
+    if (report.risks.length && (await supabase.from("performance_risks").insert(rows(report.risks))).error) throw new Error("Unable to save Performance risks.");
+    if (report.opportunities.length && (await supabase.from("performance_opportunities").insert(rows(report.opportunities))).error) throw new Error("Unable to save Performance opportunities.");
     const recommendations = [{ phase: "IMMEDIATE", action: report.recommendations.immediate }, { phase: "SHORT_TERM", action: report.recommendations.short_term }, { phase: "STRATEGIC", action: report.recommendations.strategic }].map((row) => ({ analysis_id: analysis.data!.id, job_id: job.id, user_id: user.id, product_id: productId, phase: row.phase, action: row.action }));
     if ((await supabase.from("performance_recommendations").insert(recommendations)).error) throw new Error("Unable to save Performance recommendations.");
     await update("COMPLETE");
     revalidatePath(`/dashboard/product/${productId}/performance`);
-    return { report, status: "COMPLETE" as const, message: "COMPLETE" };
+    return { report, status: "COMPLETE" as const, message: synthesisMessage };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Performance analysis failed.";
     await update(message.includes("insufficient") ? "INSUFFICIENT_DATA" : "ERROR", message);
