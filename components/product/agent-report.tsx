@@ -5,7 +5,7 @@ import { ArrowRight } from "lucide-react";
 import { askProductAgent, type AgentMessage, type AgentResponse } from "@/app/(routes)/dashboard/product/agent-actions";
 
 const prompts = ["WHY IS MY PRODUCT FAILING?", "WHAT SHOULD WE IMPROVE?", "WHAT SHOULD WE BUILD NEXT?", "WHEN SHOULD WE LAUNCH?", "WHERE SHOULD WE EXPAND?", "WHAT CHANGED?"];
-const AGENT_TIMEOUT_MS = 30_000;
+const AGENT_TIMEOUT_MS = 8_000;
 
 export function AgentReportView({ productId, productName, initialResponse }: { productId: string; productName: string; initialResponse: AgentResponse | null }) {
   const [messages, setMessages] = useState<AgentMessage[]>([]);
