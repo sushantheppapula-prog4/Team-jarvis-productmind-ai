@@ -1,0 +1,28 @@
+"use client";
+
+import { useState } from "react";
+import { ArrowRight, RefreshCw } from "lucide-react";
+import { generateIntelligence, type IntelligenceModule } from "@/app/(routes)/dashboard/product/intelligence-actions";
+
+type Props = { productId: string; module: IntelligenceModule; title: string; description: string; initialReport?: any };
+
+export function IntelligenceModuleView({ productId, module, title, description, initialReport }: Props) {
+  const [report, setReport] = useState<any>(initialReport || null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [question, setQuestion] = useState("");
+  async function run() {
+    setLoading(true); setError("");
+    try { const result = await generateIntelligence(productId, module, question); setReport(result.report); }
+    catch (err) { setError(err instanceof Error ? err.message : "Unable to generate this intelligence module."); }
+    finally { setLoading(false); }
+  }
+  return <div className="p-8 lg:p-12 min-h-screen bg-[#F9F9F7]">
+    <div className="border-b-4 border-[#111111] pb-6 mb-10"><p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[#CC0000] mb-3">Clyra Intelligence Desk</p><h1 className="font-serif text-5xl font-black uppercase text-[#111111]">{title}</h1><p className="font-mono text-xs uppercase tracking-widest text-[#525252] mt-4">{description}</p></div>
+    {module === "agent" && <div className="mb-8 flex gap-2"><input value={question} onChange={(e) => setQuestion(e.target.value)} className="flex-1 border-2 border-[#111111] bg-transparent p-4 font-mono text-sm" placeholder="Ask about the selected product..." /><button onClick={run} disabled={loading || !question.trim()} className="border-2 border-[#111111] bg-[#111111] px-6 font-mono text-xs font-bold uppercase tracking-widest text-[#F9F9F7] disabled:opacity-50">Ask <ArrowRight className="ml-2 inline h-4 w-4" /></button></div>}
+    {module !== "agent" && <button onClick={run} disabled={loading} className="mb-10 border-2 border-[#111111] bg-[#111111] px-7 py-4 font-mono text-xs font-bold uppercase tracking-widest text-[#F9F9F7] hover:bg-[#CC0000] disabled:opacity-50">{loading ? "Generating..." : "Generate Intelligence Report"} <ArrowRight className="ml-2 inline h-4 w-4" /></button>}
+    {error && <div className="mb-8 border-2 border-[#CC0000] p-4 font-mono text-xs uppercase text-[#CC0000]">{error}</div>}
+    {!report && <div className="border-2 border-[#111111] p-10"><p className="font-serif text-2xl font-bold">No report generated yet.</p><p className="mt-3 font-mono text-xs uppercase tracking-widest text-[#525252]">Generate this module from the saved product record. Live evidence is never fabricated.</p></div>}
+    {report && <div className="space-y-8"><div className="border-2 border-[#111111] bg-[#111111] p-8 text-[#F9F9F7]"><div className="flex items-center justify-between gap-4"><h2 className="font-serif text-3xl font-bold">{report.title || title}</h2><span className="font-mono text-[10px] uppercase tracking-widest text-[#F9F9F7]">{report.status}</span></div><p className="mt-5 max-w-4xl font-body text-sm leading-7">{report.summary}</p></div>{(report.sections || []).map((section: any) => <section key={section.heading} className="border-t-2 border-[#111111] pt-5"><h3 className="mb-5 font-mono text-xs font-bold uppercase tracking-[0.25em] text-[#CC0000]">{section.heading}</h3><div className="grid grid-cols-1 gap-0 md:grid-cols-2">{(section.items || []).map((item: any) => <div key={item.label} className="border-2 border-[#111111] p-5 md:-ml-0 md:-mt-0"><p className="font-mono text-[10px] font-bold uppercase tracking-widest text-[#525252]">{item.label}</p><p className="mt-3 font-serif text-lg leading-7">{item.value}</p></div>)}</div></section>)}<div className="border-t-2 border-[#111111] pt-5"><p className="font-mono text-[10px] uppercase tracking-widest text-[#525252]">Evidence / provenance</p><p className="mt-3 font-mono text-xs uppercase tracking-widest">{report.evidence?.length ? report.evidence.join(" · ") : "No external sources claimed. DEMO / LIMITED DATA."}</p><button onClick={run} className="mt-6 font-mono text-xs uppercase tracking-widest underline"><RefreshCw className="mr-2 inline h-3 w-3" />Update report</button></div></div>}
+  </div>;
+}
