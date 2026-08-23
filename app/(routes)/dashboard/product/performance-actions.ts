@@ -117,7 +117,7 @@ export async function getPerformanceContext(productId: string) {
 }
 
 async function synthesize(product: Record<string, unknown>, market: Awaited<ReturnType<typeof getLatestMarketAnalysis>>, review: Record<string, unknown>) {
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   if (!key) throw new Error("Gemini is not configured for Performance analysis.");
   const prompt = [
     "You are Clyra's evidence-bound product performance analyst.",

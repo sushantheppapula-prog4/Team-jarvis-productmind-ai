@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 export type IntelligenceModule = "scalability" | "improvements" | "suggestions" | "next-generation" | "continuous" | "agent";
-type Report = { module: IntelligenceModule; title: string; status: "AI GENERATED" | "DEMO / LIMITED DATA" | "INSUFFICIENT LIVE EVIDENCE"; summary: string; sections: Array<{ heading: string; items: Array<{ label: string; value: string }> }>; evidence: string[]; generated_at: string };
+type Report = { module: IntelligenceModule; title: string; status: "AI GENERATED" | "INSUFFICIENT LIVE EVIDENCE"; summary: string; sections: Array<{ heading: string; items: Array<{ label: string; value: string }> }>; evidence: string[]; generated_at: string };
 type Context = { supabase: Awaited<ReturnType<typeof createClient>>; user: { id: string }; product: Record<string, unknown>; market: Record<string, unknown> | null; review: Record<string, unknown> | null; performance: Record<string, unknown> | null; saved: Record<string, unknown>[] };
 
 const modulePrompts: Record<IntelligenceModule, string> = {
@@ -37,7 +37,7 @@ function completeFor(module: IntelligenceModule, context: Context) { const marke
 function extractJson(text: string): unknown { const match = text.match(/\{[\s\S]*\}/); return JSON.parse(match ? match[0] : text); }
 
 export async function generateIntelligence(productId: string, module: IntelligenceModule, question?: string) {
-  const context = await getContext(productId); let report = baseReport(context.product, module, question); const apiKey = process.env.GEMINI_API_KEY;
+  const context = await getContext(productId); let report = baseReport(context.product, module, question); const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   if (apiKey && completeFor(module, context)) {
     try {
       const prompt = `You are Clyra's evidence-bound product intelligence analyst. ${modulePrompts[module]} Return JSON with keys title, summary, sections (array of {heading,items:[{label,value}]}), and evidence (array of exact source URLs already present in the supplied context). Never invent quotes, statistics, sources, dates, prices, ratings, or market facts. If a requested conclusion is unsupported, say so. PRODUCT=${JSON.stringify(context.product)} MARKET=${JSON.stringify(context.market || {})} REVIEW=${JSON.stringify(context.review || {})} PERFORMANCE=${JSON.stringify(context.performance || {})} SAVED_MODULE_REPORTS=${JSON.stringify(context.saved)} QUESTION=${question || ""}`;
@@ -45,7 +45,7 @@ export async function generateIntelligence(productId: string, module: Intelligen
       if (!response.ok) throw new Error(`GEMINI_HTTP_${response.status}`);
       const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }; const parsed = extractJson(payload.candidates?.[0]?.content?.parts?.[0]?.text || "");
       if (parsed && typeof parsed === "object") report = { ...report, ...(parsed as Partial<Report>), module, status: "AI GENERATED", generated_at: new Date().toISOString() };
-    } catch { report = { ...report, status: "DEMO / LIMITED DATA", summary: "Gemini was unavailable or returned an invalid structured response. No unsupported intelligence was generated." }; }
+    } catch { report = { ...report, status: "INSUFFICIENT LIVE EVIDENCE", summary: "Gemini was unavailable or returned an invalid structured response. No unsupported intelligence was generated." }; }
   }
   const { error: saveError } = await context.supabase.from("product_intelligence_reports").upsert({ user_id: context.user.id, product_id: productId, module, report }, { onConflict: "user_id,product_id,module" }); if (saveError) throw new Error(`Unable to save intelligence report: ${saveError.message}`);
   revalidatePath(`/dashboard/product/${productId}`); revalidatePath(`/dashboard/product/${productId}/${module === "suggestions" ? "new-product-suggestions" : module}`); return { report, persisted: true };
