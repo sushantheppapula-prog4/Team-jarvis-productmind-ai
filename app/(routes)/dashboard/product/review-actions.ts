@@ -94,7 +94,8 @@ async function context(productId: string) {
 export async function getReviewReport(productId: string) {
   const { supabase } = await context(productId);
   const { data } = await supabase.from("product_intelligence_reports").select("report").eq("product_id", productId).eq("module", "review").maybeSingle();
-  return (data?.report as ReviewReport | null) || null;
+  const report = data?.report as ReviewReport | null;
+  return report?.synthetic_test_data ? null : report;
 }
 
 export async function analyzeReviews(productId: string) {
