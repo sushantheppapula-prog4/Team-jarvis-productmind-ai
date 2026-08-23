@@ -161,16 +161,27 @@ const responseSchema = {
   }, required: ["market_readiness", "readiness_reason", "recommended_launch_window", "launch_reasoning", "confidence", "confidence_reason", "reasoning", "key_findings", "signals", "recommendations"],
 };
 
+function classifyGeminiError(status: number) {
+  if (status === 401 || status === 403) return "GEMINI_AUTH_ERROR";
+  if (status === 404) return "GEMINI_MODEL_ERROR";
+  if (status === 429) return "GEMINI_RATE_LIMIT";
+  if (status >= 500) return "GEMINI_ENDPOINT_ERROR";
+  return "GEMINI_ENDPOINT_ERROR";
+}
+
 export async function synthesizeMarketAnalysis(product: Record<string, unknown>, sources: Evidence[]): Promise<MarketAnalysis> {
   if (!sources.length) throw new Error("Insufficient evidence available.");
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   if (!apiKey) throw new Error("Gemini is not configured for market analysis.");
   const prompt = ["You are Clyra's market intelligence analyst. Produce a cautious, evidence-based report for the supplied product.", "Use only the supplied product details and source records. Do not invent demand, prices, customer statements, competitors, dates, or URLs.", "If the evidence is weak or only consists of headlines, set market_readiness to INSUFFICIENT DATA or LOW, set confidence to LOW, and say so.", "Never guarantee success or claim an exact success date. If seasonality or timing evidence is insufficient, set recommended_launch_window to 'Launch timing recommendation unavailable due to insufficient evidence.'", "Every evidence array must contain only source URLs from the supplied records.", `PRODUCT:\n${JSON.stringify(product, null, 2)}`, `SOURCES:\n${JSON.stringify(sources, null, 2)}`].join("\n\n");
-  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema } }), cache: "no-store" });
-  if (!response.ok) throw new Error(`Gemini returned HTTP ${response.status}.`);
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema } }), cache: "no-store" });
+  if (!response.ok) {
+    const providerBody = (await response.text()).slice(0, 240).replace(/\s+/g, " ");
+    throw new Error(`${classifyGeminiError(response.status)}: Gemini returned HTTP ${response.status}${providerBody ? ` — ${providerBody}` : ""}`);
+  }
   const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
   const text = payload.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("Gemini returned no structured market analysis.");
-  let parsed: unknown; try { parsed = JSON.parse(text); } catch { throw new Error("Gemini returned invalid structured market analysis."); }
+  if (!text) throw new Error("GEMINI_INVALID_RESPONSE: Gemini returned no structured market analysis.");
+  let parsed: unknown; try { parsed = JSON.parse(text); } catch { throw new Error("GEMINI_INVALID_RESPONSE: Gemini returned invalid structured market analysis."); }
   return validateAnalysis(parsed);
 }
