@@ -149,10 +149,11 @@ export async function generateSyntheticReviewReport(productId: string) {
     if ((await supabase.from("review_analyses").insert({ job_id: jobId, user_id: user.id, product_id: productId, report })).error) throw new Error("Unable to save synthetic Review analysis.");
     await update("COMPLETE");
     revalidatePath(`/dashboard/product/${productId}/review-report`);
-    return { report, status: "COMPLETE" as const, message: "SYNTHETIC TEST DATA · AI TEST SCORE ONLY" };
+    return { success: true as const, report, status: "COMPLETE" as const, message: "ANALYTICAL TEST DATA · AI TEST SCORE ONLY" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Synthetic Review Report generation failed.";
     await update("ERROR", message);
-    throw new Error(message);
+    console.error("[review-report][synthetic]", error);
+    return { success: false as const, report: null, status: "ERROR" as const, message: "Unable to generate analytical test data right now.", error: message };
   }
 }
