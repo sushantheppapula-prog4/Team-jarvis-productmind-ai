@@ -9,14 +9,16 @@ type Sentiment = "POSITIVE" | "NEUTRAL" | "NEGATIVE" | "MIXED";
 type Severity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 type Classification = "USER_PREFERENCE" | "USABILITY_ISSUE" | "PRODUCT_DEFECT" | "SERVICE_ISSUE";
 
-export type ReviewSource = { title: string; url: string; domain: string; published_at: string | null; retrieved_at: string; source_type?: string; claim: string; evidence_text?: string; is_quote: boolean };
+export type ReviewSource = { title: string; url: string; domain: string; published_at: string | null; retrieved_at: string; source_type?: string; claim: string; evidence_text?: string; is_quote: boolean; synthetic?: true };
 export type ReviewObservation = { source_index: number; sentiment: Sentiment; topic: string; claim: string; evidence: string; severity?: Severity };
 export type ReviewFinding = { kind: "COMPLAINT" | "STRENGTH" | "WEAKNESS" | "PROBLEM" | "COMPETITOR_COMPARISON"; title: string; detail: string; impact?: string; severity?: Severity; classification?: Classification; source_indexes: number[] };
-export type ReviewReport = { title: string; status: ReviewStatus; summary: string; overall_sentiment: string; sentiment_percentages?: { positive: number; neutral: number; negative: number }; positive_themes: string[]; negative_themes: string[]; emerging_themes: string[]; observations: ReviewObservation[]; complaints: ReviewFinding[]; strengths: ReviewFinding[]; weaknesses: ReviewFinding[]; problems: ReviewFinding[]; competitor_comparison: ReviewFinding[]; customer_needs: string[]; feature_requests: string[]; recommended_actions: string[]; sources: ReviewSource[]; generated_at: string };
+export type SyntheticReview = { review_id: string; product_id: string; rating: 1 | 2 | 3 | 4 | 5; sentiment: Sentiment; title: string; review_text: string; topic: string; synthetic: true };
+export type ReviewReport = { title: string; status: ReviewStatus; summary: string; overall_sentiment: string; sentiment_percentages?: { positive: number; neutral: number; negative: number }; positive_themes: string[]; negative_themes: string[]; emerging_themes: string[]; observations: ReviewObservation[]; complaints: ReviewFinding[]; strengths: ReviewFinding[]; weaknesses: ReviewFinding[]; problems: ReviewFinding[]; competitor_comparison: ReviewFinding[]; customer_needs: string[]; feature_requests: string[]; recommended_actions: string[]; sources: ReviewSource[]; generated_at: string; synthetic_test_data?: true; synthetic_notice?: string; synthetic_score?: number; synthetic_reviews?: SyntheticReview[] };
 
 function text(value: unknown): value is string { return typeof value === "string" && value.trim().length > 0; }
 function domainFor(url: string) { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return "unknown"; } }
 function clean(value: unknown) { return String(value || "").replace(/[()\"]/g, " ").replace(/\s+/g, " ").trim().slice(0, 100); }
+function productFacts(product: Record<string, unknown>) { return JSON.stringify({ name: product.name, brand: product.brand, category: product.category, description: product.description, features: product.features, advantages: product.advantages, target_audience: product.target_audience, price: product.price, competitors: product.competitors }); }
 
 async function researchReviews(product: Record<string, unknown>) {
   const terms = [clean(product.name), clean(product.category), clean(product.target_market), "customer reviews feedback complaints"] .filter(Boolean).slice(0, 4);
@@ -72,6 +74,14 @@ async function synthesize(product: Record<string, unknown>, sources: ReviewSourc
   return validateReport(JSON.parse(raw), sources);
 }
 
+const syntheticReviewSchema = { type: "object", properties: { reviews: { type: "array", minItems: 15, maxItems: 30, items: { type: "object", properties: { review_id: { type: "string" }, rating: { type: "integer" }, sentiment: { type: "string" }, title: { type: "string" }, review_text: { type: "string" }, topic: { type: "string" } }, required: ["review_id", "rating", "sentiment", "title", "review_text", "topic"] } } }, required: ["reviews"] };
+
+function validateSyntheticReviews(value: unknown, productId: string): SyntheticReview[] { const rows = value && typeof value === "object" && Array.isArray((value as { reviews?: unknown }).reviews) ? (value as { reviews: unknown[] }).reviews : []; if (rows.length < 15 || rows.length > 30) throw new Error("Synthetic generator must return between 15 and 30 reviews."); return rows.map((raw, index) => { if (!raw || typeof raw !== "object") throw new Error("Invalid synthetic review."); const row = raw as Partial<SyntheticReview>; const rating = Number(row.rating); if (!Number.isInteger(rating) || rating < 1 || rating > 5 || !text(row.review_id) || !text(row.title) || !text(row.review_text) || !text(row.topic) || !["POSITIVE", "NEUTRAL", "NEGATIVE", "MIXED"].includes(String(row.sentiment))) throw new Error("Invalid synthetic review fields."); return { review_id: row.review_id || `synthetic-${index + 1}`, product_id: productId, rating: rating as SyntheticReview["rating"], sentiment: row.sentiment as Sentiment, title: row.title, review_text: row.review_text, topic: row.topic, synthetic: true }; }); }
+
+async function generateSyntheticReviews(product: Record<string, unknown>, productId: string) { const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY; if (!key) throw new Error("GEMINI_API_KEY is not configured on the server."); const prompt = `Create 20 clearly synthetic test reviews for the selected product. These are not real customer reviews and must not claim real buyers, verified purchases, ratings, statistics, URLs, or external evidence. Adapt every review to the supplied product facts. Use a mixed 1–5 rating distribution, positive/neutral/negative/mixed sentiments, and topics QUALITY, PRICE, DESIGN, PERFORMANCE, RELIABILITY, USABILITY, FEATURES, ASSEMBLY, SUPPORT, or OTHER. PRODUCT FACTS: ${productFacts(product)}`; const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent", { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": key }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema: syntheticReviewSchema } }), cache: "no-store" }); if (!response.ok) { const detail = (await response.text()).slice(0, 240).replace(/\s+/g, " ").trim(); throw new Error(`Gemini synthetic generator returned HTTP ${response.status}${detail ? `: ${detail}` : "."}`); } const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }; const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text; if (!raw) throw new Error("Gemini returned no synthetic reviews."); return validateSyntheticReviews(JSON.parse(raw), productId); }
+
+async function synthesizeSynthetic(product: Record<string, unknown>, reviews: SyntheticReview[]) { const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY; if (!key) throw new Error("GEMINI_API_KEY is not configured on the server."); const prompt = ["You are Clyra's synthetic Review Report test analyst.", "Analyze ONLY the synthetic test reviews supplied below. They are AI-generated test data, not real customer reviews or live web evidence.", "Return the same Review Report JSON shape. Use empty source_indexes arrays because these synthetic reviews are not live URL sources. Do not invent external sources, quotes, verified buyers, ratings, statistics, or real customer claims.", `PRODUCT FACTS:\n${productFacts(product)}`, `SYNTHETIC REVIEWS:\n${JSON.stringify(reviews)}`].join("\n\n"); const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent", { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": key }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema } }), cache: "no-store" }); if (!response.ok) { const detail = (await response.text()).slice(0, 240).replace(/\s+/g, " ").trim(); throw new Error(`Gemini synthetic analysis returned HTTP ${response.status}${detail ? `: ${detail}` : "."}`); } const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }; const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text; if (!raw) throw new Error("Gemini returned no synthetic Review Report."); const placeholders = reviews.map((review) => ({ title: review.title, url: `synthetic://${review.review_id}`, domain: "synthetic-test-data", published_at: null, retrieved_at: new Date().toISOString(), claim: review.review_text, evidence_text: review.review_text, is_quote: false, synthetic: true as const })); const report = validateReport(JSON.parse(raw), placeholders); return { ...report, sources: [] }; }
+
 async function context(productId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -121,4 +131,28 @@ export async function analyzeReviews(productId: string) {
   await update("COMPLETE");
   revalidatePath(`/dashboard/product/${productId}/review-report`);
   return { report, status: "COMPLETE" as const, message: "COMPLETE" };
+}
+
+export async function generateSyntheticReviewReport(productId: string) {
+  const { supabase, user, product } = await context(productId);
+  const job = await supabase.from("review_analysis_jobs").insert({ user_id: user.id, product_id: productId, status: "COLLECTING_REVIEWS" }).select("id").single();
+  if (job.error || !job.data) throw new Error("Review Report migration is not applied.");
+  const jobId = job.data.id;
+  const update = async (status: ReviewStatus, error_message?: string) => { await supabase.from("review_analysis_jobs").update({ status, error_message: error_message || null, completed_at: ["COMPLETE", "ERROR"].includes(status) ? new Date().toISOString() : null }).eq("id", jobId).eq("user_id", user.id).eq("product_id", productId); };
+  try {
+    const reviews = await generateSyntheticReviews(product, productId);
+    await update("ANALYZING_SENTIMENT");
+    const analyzed = await synthesizeSynthetic(product, reviews);
+    const syntheticScore = Math.round((reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length) * 20); const report: ReviewReport = { ...analyzed, title: "04 REVIEW REPORT · SYNTHETIC TEST DATA", synthetic_test_data: true, synthetic_notice: "These reviews are AI-generated test data and are not real customer reviews or live web evidence.", synthetic_score: syntheticScore, synthetic_reviews: reviews, sources: [], generated_at: new Date().toISOString() };
+    const saved = await supabase.from("product_intelligence_reports").upsert({ user_id: user.id, product_id: productId, module: "review", report }, { onConflict: "user_id,product_id,module" });
+    if (saved.error) throw new Error("Unable to save synthetic Review Report.");
+    if ((await supabase.from("review_analyses").insert({ job_id: jobId, user_id: user.id, product_id: productId, report })).error) throw new Error("Unable to save synthetic Review analysis.");
+    await update("COMPLETE");
+    revalidatePath(`/dashboard/product/${productId}/review-report`);
+    return { report, status: "COMPLETE" as const, message: "SYNTHETIC TEST DATA · AI TEST SCORE ONLY" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Synthetic Review Report generation failed.";
+    await update("ERROR", message);
+    throw new Error(message);
+  }
 }
