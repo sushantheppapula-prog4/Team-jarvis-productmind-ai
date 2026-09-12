@@ -85,14 +85,21 @@ export async function checkRateLimit(
     prefix: "@upstash/ratelimit",
   });
 
-  const { success, limit: resLimit, remaining, reset } = await ratelimit.limit(identifier);
+  try {
+    const { success, limit: resLimit, remaining, reset } = await ratelimit.limit(identifier);
 
-  return {
-    success,
-    limit: resLimit,
-    remaining,
-    reset,
-  };
+    return {
+      success,
+      limit: resLimit,
+      remaining,
+      reset,
+    };
+  } catch (error) {
+    // A configured but unavailable Redis service must not make authentication fail.
+    // Preserve the same limits locally while allowing the auth action to continue.
+    console.error("[rate-limit] Upstash unavailable; using fallback limiter.");
+    return checkFallbackRateLimit(action, identifier);
+  }
 }
 
 // Very basic fallback memory rate limit
