@@ -16,9 +16,20 @@ function authErrorPath(path: string, message: string) {
   return `${path}?error=${encodeURIComponent(message)}`;
 }
 
+async function enforceRateLimit(action: "login" | "signup") {
+  try {
+    const context = await getRateLimitContext();
+    return await checkRateLimit(action, context);
+  } catch {
+    // Authentication must remain available if an optional rate-limit provider
+    // is misconfigured or temporarily unreachable. The limiter itself keeps
+    // an in-memory fallback for configured and unconfigured environments.
+    return { success: true, limit: 0, remaining: 0, reset: Date.now() };
+  }
+}
+
 export async function signIn(formData: FormData) {
-  const rlContext = await getRateLimitContext();
-  const rl = await checkRateLimit("login", rlContext);
+  const rl = await enforceRateLimit("login");
   if (!rl.success) redirect(authErrorPath("/login", "Too many login attempts. Please try again later."));
 
   let authError: unknown = null;
@@ -41,8 +52,7 @@ export async function signUp(formData: FormData) {
   const protocol = headersList.get("x-forwarded-proto") ?? "https";
   const origin = headersList.get("origin") ?? `${protocol}://${host}`;
 
-  const rlContext = await getRateLimitContext();
-  const rl = await checkRateLimit("signup", rlContext);
+  const rl = await enforceRateLimit("signup");
   if (!rl.success) redirect(authErrorPath("/sign-up", "Too many signup attempts. Please try again later."));
 
   let authError: unknown = null;
