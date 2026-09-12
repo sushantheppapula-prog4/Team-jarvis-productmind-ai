@@ -2,7 +2,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { checkRateLimit, getRateLimitContext } from "@/lib/rate-limit";
 import { getSafeAuthError } from "@/lib/supabase/config";
 
 function credentials(formData: FormData) {
@@ -16,21 +15,8 @@ function authErrorPath(path: string, message: string) {
   return `${path}?error=${encodeURIComponent(message)}`;
 }
 
-async function enforceRateLimit(action: "login" | "signup") {
-  try {
-    const context = await getRateLimitContext();
-    return await checkRateLimit(action, context);
-  } catch {
-    // Authentication must remain available if an optional rate-limit provider
-    // is misconfigured or temporarily unreachable. The limiter itself keeps
-    // an in-memory fallback for configured and unconfigured environments.
-    return { success: true, limit: 0, remaining: 0, reset: Date.now() };
-  }
-}
-
 export async function signIn(formData: FormData) {
-  const rl = await enforceRateLimit("login");
-  if (!rl.success) redirect(authErrorPath("/login", "Too many login attempts. Please try again later."));
+  // TEMPORARY DEBUG BYPASS: restore login rate limiting after production auth debugging.
 
   let authError: unknown = null;
   try {
@@ -52,8 +38,7 @@ export async function signUp(formData: FormData) {
   const protocol = headersList.get("x-forwarded-proto") ?? "https";
   const origin = headersList.get("origin") ?? `${protocol}://${host}`;
 
-  const rl = await enforceRateLimit("signup");
-  if (!rl.success) redirect(authErrorPath("/sign-up", "Too many signup attempts. Please try again later."));
+  // TEMPORARY DEBUG BYPASS: restore signup rate limiting after production auth debugging.
 
   let authError: unknown = null;
   let authData: { session: unknown } | null = null;
